@@ -40,10 +40,15 @@ jobs:
           LLM_MODEL: openai/gpt-4o-mini
         run: python -m tools.kg_build --repo-root . --base-url https://example.com
 
+      - name: Copy graph data into API package
+        run: |
+          mkdir -p api/data
+          cp graph/articles/*.ttl api/data/ 2>/dev/null || echo "No TTL files to copy"
+
       - name: Check for changes
         id: changes
         run: |
-          git add graph/
+          git add graph/ api/data/
           if git diff --cached --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
@@ -55,6 +60,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add graph/
+          git add graph/ api/data/
           git commit -m "chore: update knowledge graph [skip ci]"
           git push

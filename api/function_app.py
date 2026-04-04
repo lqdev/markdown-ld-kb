@@ -26,7 +26,7 @@ def _load_dataset() -> Dataset:
         return _dataset
 
     ds = Dataset()
-    graph_dir = Path(__file__).parent.parent / "graph" / "articles"
+    graph_dir = Path(__file__).parent / "data"
 
     if graph_dir.exists():
         for ttl_file in graph_dir.glob("*.ttl"):
