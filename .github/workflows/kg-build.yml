@@ -1,0 +1,60 @@
+name: KG Build — Extract Knowledge Graph
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'content/**'
+      - 'ontology/**'
+      - 'tools/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  models: read
+
+jobs:
+  build-graph:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Build knowledge graph
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LLM_MODEL: openai/gpt-4o-mini
+        run: python -m tools.kg_build --repo-root . --base-url https://example.com
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add graph/
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit graph artifacts
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add graph/
+          git commit -m "chore: update knowledge graph [skip ci]"
+          git push

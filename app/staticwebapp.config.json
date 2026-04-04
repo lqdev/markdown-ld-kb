@@ -1,0 +1,14 @@
+{
+  "routes": [
+    { "route": "/sparql", "rewrite": "/api/sparql" }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html"
+  },
+  "globalHeaders": {
+    "Cache-Control": "public, max-age=300"
+  },
+  "platform": {
+    "apiRuntime": "python:3.11"
+  }
+}
