@@ -3,7 +3,7 @@ title: "What is a Knowledge Graph?"
 date_published: "2026-04-04"
 date_modified: "2026-04-04"
 authors:
-  - name: "Luis"
+  - name: "Author Name"
 tags: ["knowledge-graph", "sparql", "linked-data", "markdown"]
 about:
   - "https://schema.org/KnowledgeGraph"

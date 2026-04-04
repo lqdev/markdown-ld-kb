@@ -48,3 +48,6 @@ Thumbs.db
 htmlcov/
 .tox/
 .nox/
+
+# Generated graph intermediates
+graph/intermediate/
