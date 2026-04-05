@@ -73,6 +73,58 @@ Use [[wikilinks]] to link between articles.
 
 The knowledge graph is queryable at `/api/sparql`. It accepts standard [W3C SPARQL 1.1 Protocol](https://www.w3.org/TR/sparql11-protocol/) requests and returns [SPARQL Results JSON](https://www.w3.org/TR/sparql11-results-json/).
 
+### Asking Questions in Natural Language
+
+Don't know SPARQL? Use the `/api/ask` endpoint to query the knowledge graph with plain English. It uses the same LLM (GitHub Models GPT-4o-mini) to translate your question into SPARQL, execute it, and return the results alongside the generated query.
+
+> **Note:** Requires `GITHUB_TOKEN` environment variable (or configured as an Azure Static Web Apps app setting).
+
+**cURL:**
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What entities are in the knowledge graph?"}' \
+  https://<your-swa-domain>/api/ask
+```
+
+**JavaScript:**
+```js
+const res = await fetch("/api/ask", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ question: "Which articles mention SPARQL?" }),
+});
+const data = await res.json();
+console.log("Generated SPARQL:", data.sparql);
+data.results.results.bindings.forEach(row => console.log(row));
+```
+
+**Python:**
+```python
+import requests
+
+res = requests.post(
+    "https://<your-swa-domain>/api/ask",
+    json={"question": "Find all organizations"},
+).json()
+
+print("SPARQL:", res["sparql"])
+for row in res["results"]["results"]["bindings"]:
+    print(row)
+```
+
+The response includes the generated SPARQL query so you can learn the query language as you go:
+
+```json
+{
+  "question": "What entities are in the knowledge graph?",
+  "sparql": "PREFIX schema: <https://schema.org/>\nSELECT DISTINCT ?entity ?name ?type WHERE {\n  ?entity a ?type ;\n          schema:name ?name .\n  FILTER(?type != schema:Article)\n}\nLIMIT 100",
+  "results": { "head": { "vars": ["entity", "name", "type"] }, "results": { "bindings": [...] } }
+}
+```
+
+### Querying with SPARQL Directly
+
 **From a browser** — paste the URL with a `query` parameter (URL-encoded):
 ```
 https://<your-swa-domain>/api/sparql?query=PREFIX%20schema%3A%20...
@@ -163,7 +215,7 @@ LIMIT 50
 │   ├── views/        # Precomputed JSON views
 │   ├── cache/        # Per-chunk extraction cache
 │   └── manifest.json # Build metadata
-├── api/              # Azure Function (SPARQL endpoint)
+├── api/              # Azure Function (SPARQL + NL query endpoints)
 ├── app/              # Static web app
 ├── tests/            # Test suite
 └── .github/workflows/
@@ -176,7 +228,7 @@ LIMIT 50
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | LLM Provider | GitHub Models (free) | Zero cost, GITHUB_TOKEN auth |
-| LLM Model | `openai/gpt-4o-mini` | Best quality/limit ratio (150 req/day) |
+| NL→SPARQL | GPT-4o-mini + schema-injected few-shot | Same LLM as extraction; schema injection prevents hallucinated predicates |
 | SPARQL Engine | RDFLib | Pure Python, small footprint, built-in JSON-LD |
 | Validation | pySHACL | Standard W3C SHACL, works with RDFLib |
 | Batching | 3-5 chunks/request | Stay under 8K input token limit |
