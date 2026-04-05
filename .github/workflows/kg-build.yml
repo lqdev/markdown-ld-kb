@@ -22,23 +22,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.11'
-          cache: 'pip'
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r tools/requirements.txt && pip install pytest
+        run: uv sync
 
       - name: Run tests
-        run: python -m pytest tests/ -v --tb=short
+        run: uv run pytest tests/ -v --tb=short
 
       - name: Build knowledge graph
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LLM_MODEL: openai/gpt-4o-mini
-        run: python -m tools.kg_build --repo-root . --base-url https://example.com
+        run: uv run python -m tools.kg_build --repo-root . --base-url https://example.com
 
       - name: Copy graph data into API package
         run: |

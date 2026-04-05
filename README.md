@@ -1,5 +1,7 @@
 # Markdown-LD Knowledge Bank
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/lqdev/markdown-ld-kb)
+
 A Git-based knowledge bank where human-authored Markdown articles are processed by an LLM CI pipeline to extract Linked Data (RDF/JSON-LD), served as static content on Azure Static Web Apps, with a serverless SPARQL endpoint.
 
 ## Architecture
@@ -18,24 +20,30 @@ content/*.md → GitHub Actions → LLM (GitHub Models) → graph/*.jsonld + *.t
 ### Prerequisites
 
 - Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
 - Git
 - Azure CLI (for deployment)
+
+> **Tip:** Click the **Open in GitHub Codespaces** badge above to get a ready-to-code environment with all dependencies pre-installed.
 
 ### Local Development
 
 ```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Install dependencies
-pip install -r tools/requirements.txt
+uv sync
 
 # Run tests
-python -m pytest tests/ -v
+uv run pytest tests/ -v
 
 # Dry run (chunk only, no LLM)
-python -m tools.kg_build --dry-run
+uv run python -m tools.kg_build --dry-run
 
 # Full build (requires GITHUB_TOKEN)
 export GITHUB_TOKEN=your_token
-python -m tools.kg_build --repo-root . --base-url https://example.com
+uv run python -m tools.kg_build --repo-root . --base-url https://example.com
 ```
 
 ### Writing Articles
