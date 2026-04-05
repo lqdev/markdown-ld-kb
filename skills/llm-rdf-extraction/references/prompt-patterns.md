@@ -1,0 +1,105 @@
+# Extraction Prompt Patterns
+
+## Current Prompt (v1)
+
+The production prompt used for entity/relation extraction:
+
+```
+SYSTEM:
+You are a deterministic RDF extraction engine. Output MUST be valid JSON per the schema below. Do not invent facts.
+
+ONTOLOGY (use schema.org first; kb: only for extraction metadata):
+- Types: schema:Article, schema:Person, schema:Organization, schema:SoftwareApplication, schema:CreativeWork, schema:Thing
+- Preferred properties: schema:about, schema:mentions, schema:sameAs, schema:author, schema:creator, schema:datePublished, schema:dateModified
+- Fallback: kb:relatedTo
+- Provenance: prov:wasDerivedFrom (use chunk URI)
+- Confidence: kb:confidence (0..1)
+
+RULES:
+- Only add relations explicitly stated or strongly implied by the text.
+- Prefer schema.org properties; use kb:relatedTo only if no schema.org property fits.
+- Every entity MUST have: id, type, label.
+- Use stable ids:
+  - articles: canonical_url
+  - entities: GRAPH_BASE_URL + "/id/" + slug(label)
+  - slug = lowercase, hyphens, no special chars
+- If a wikilink or entity_hints provides sameAs, use it.
+- Emit 0..N triples. Avoid duplicates.
+- Set confidence based on how explicitly the text states the relation:
+  - 0.9+: directly stated ("X created Y")
+  - 0.7-0.9: strongly implied
+  - 0.5-0.7: weakly implied
+  - <0.5: do not emit
+
+OUTPUT JSON SCHEMA:
+{
+  "entities":[{"id":"...","type":"schema:Thing","label":"...","sameAs":["..."]}],
+  "assertions":[
+     {"s":"...","p":"schema:mentions","o":"...","confidence":0.85,"source":"urn:kb:chunk:..."}
+  ]
+}
+```
+
+## Few-Shot Example Pattern
+
+Always include 2-3 examples that demonstrate:
+
+### Example 1: Explicit relationship
+
+```
+TEXT: "Neo4j was created by Emil Eifrem."
+OUTPUT:
+{"entities":[
+ {"id":"https://example.com/id/neo4j","type":"schema:SoftwareApplication","label":"Neo4j"},
+ {"id":"https://example.com/id/emil-eifrem","type":"schema:Person","label":"Emil Eifrem"}
+],
+"assertions":[
+ {"s":"https://example.com/id/neo4j","p":"schema:creator","o":"https://example.com/id/emil-eifrem","confidence":0.92,"source":"urn:kb:chunk:EXAMPLE"}
+]}
+```
+
+### Example 2: Article mentions
+
+```
+TEXT: "This article discusses SPARQL and JSON-LD as key standards."
+OUTPUT:
+{"entities":[
+ {"id":"https://example.com/id/sparql","type":"schema:Thing","label":"SPARQL"},
+ {"id":"https://example.com/id/json-ld","type":"schema:Thing","label":"JSON-LD"}
+],
+"assertions":[
+ {"s":"<ARTICLE_ID>","p":"schema:mentions","o":"https://example.com/id/sparql","confidence":0.85,"source":"urn:kb:chunk:EXAMPLE"},
+ {"s":"<ARTICLE_ID>","p":"schema:mentions","o":"https://example.com/id/json-ld","confidence":0.85,"source":"urn:kb:chunk:EXAMPLE"}
+]}
+```
+
+## Prompt Iteration Checklist
+
+When creating a new prompt version:
+
+1. **Define the change hypothesis** — What specific extraction quality issue are you fixing?
+2. **Create a golden test set** — 5-10 chunks with manually verified expected output
+3. **Create the new prompt file** — `extract_rdf_v2.txt`
+4. **Run against golden set** — Compare entity and assertion counts, precision, recall
+5. **Check for regressions** — Ensure previously correct extractions still work
+6. **Update PROMPT_VERSION** — Invalidates all caches
+7. **Full pipeline run** — Rebuild the entire graph
+
+## API Call Configuration
+
+```python
+response = client.chat.completions.create(
+    model="openai/gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message},
+    ],
+    temperature=0,                                  # deterministic output
+    response_format={"type": "json_object"},        # force valid JSON
+)
+```
+
+**Key settings:**
+- `temperature=0` — Maximizes reproducibility
+- `response_format=json_object` — Prevents markdown wrapping, ensures parseable output
+- Model: `openai/gpt-4o-mini` via GitHub Models endpoint (`https://models.github.ai/inference`)
